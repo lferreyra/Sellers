@@ -16,22 +16,35 @@ import { ENV } from "./env";
 type MapsConfig = {
   baseUrl: string;
   apiKey: string;
+  isProxy: boolean;
 };
 
 function getMapsConfig(): MapsConfig {
-  const baseUrl = ENV.forgeApiUrl;
-  const apiKey = ENV.forgeApiKey;
+  const forgeUrl = ENV.forgeApiUrl;
+  const forgeKey = ENV.forgeApiKey;
+  const standardKey = ENV.googleMapsApiKey;
 
-  if (!baseUrl || !apiKey) {
-    throw new Error(
-      "Google Maps proxy credentials missing: set BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY"
-    );
+  // Use Forge proxy if available (Manus environment)
+  if (forgeUrl && forgeKey) {
+    return {
+      baseUrl: forgeUrl.replace(/\/+$/, ""),
+      apiKey: forgeKey,
+      isProxy: true,
+    };
   }
 
-  return {
-    baseUrl: baseUrl.replace(/\/+$/, ""),
-    apiKey,
-  };
+  // Fallback to standard Google Maps API (Render, Vercel, local)
+  if (standardKey) {
+    return {
+      baseUrl: "https://maps.googleapis.com",
+      apiKey: standardKey,
+      isProxy: false,
+    };
+  }
+
+  throw new Error(
+    "Google Maps credentials missing: set GOOGLE_MAPS_API_KEY in your environment variables"
+  );
 }
 
 // ============================================================================
@@ -56,10 +69,11 @@ export async function makeRequest<T = unknown>(
   params: Record<string, unknown> = {},
   options: RequestOptions = {}
 ): Promise<T> {
-  const { baseUrl, apiKey } = getMapsConfig();
+  const { baseUrl, apiKey, isProxy } = getMapsConfig();
 
-  // Construct full URL: baseUrl + /v1/maps/proxy + endpoint
-  const url = new URL(`${baseUrl}/v1/maps/proxy${endpoint}`);
+  // Construct full URL
+  const path = isProxy ? `/v1/maps/proxy${endpoint}` : endpoint;
+  const url = new URL(`${baseUrl}${path}`);
 
   // Add API key as query parameter (standard Google Maps API authentication)
   url.searchParams.append("key", apiKey);
