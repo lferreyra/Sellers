@@ -150,7 +150,7 @@ export const appRouter = router({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message:
-            "No pudimos consultar Google Places. Revisa la consulta e inténtalo nuevamente.",
+            `Error de Google: ${error instanceof Error ? error.message : String(error)}`,
           cause: error,
         });
       }
